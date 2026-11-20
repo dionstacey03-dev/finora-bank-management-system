@@ -1,0 +1,6 @@
+{
+  "name": "FINORA",
+  "description": "FINORA — Smart Finance. Secure Future. An educational digital banking management platform with customer and administrator workflows.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

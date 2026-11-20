@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FINORA — Smart Finance. Secure Future.</title>
+    <meta
+      name="description"
+      content="FINORA is an educational digital banking management platform demonstrating realistic customer and administrator financial workflows."
+    />
+    <meta property="og:title" content="FINORA — Smart Finance. Secure Future." />
+    <meta
+      property="og:description"
+      content="FINORA is an educational digital banking management platform demonstrating realistic customer and administrator financial workflows."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function () {
+        try {
+          var mode = localStorage.getItem('finora_theme_mode_v1');
+          var isLight = mode === 'light';
+          document.documentElement.classList.toggle('dark', !isLight);
+          document.documentElement.style.colorScheme = isLight ? 'light' : 'dark';
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-slate-100 text-slate-900 dark:bg-[#060D1A] dark:text-[#F0F6FC] antialiased selection:bg-cyan-600/20 selection:text-cyan-900 dark:selection:bg-cyan-400/25 dark:selection:text-cyan-200">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
