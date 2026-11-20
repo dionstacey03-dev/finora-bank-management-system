@@ -289,9 +289,9 @@ export const AuthScreen: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label htmlFor="auth-passcode" className="block text-xs font-medium text-slate-700 dark:text-slate-300">
-                      Simulated Passcode (In-Memory Only)
+                      Demo Entry Code (Not Verified)
                     </label>
-                    <span className="text-[11px] text-slate-500">Min 6 chars</span>
+                    <span className="text-[11px] text-slate-500">Any 6+ characters</span>
                   </div>
                   <div className="relative">
                     <input
@@ -376,7 +376,7 @@ export const AuthScreen: React.FC = () => {
                 </div>
                 <div>
                   <label htmlFor="reg-passcode" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                    Educational Passcode (Not Stored)
+                    Demo Passcode (Not Saved or Used for Sign-In)
                   </label>
                   <input
                     id="reg-passcode"
@@ -385,7 +385,7 @@ export const AuthScreen: React.FC = () => {
                     minLength={6}
                     value={regPasscode}
                     onChange={(e) => setRegPasscode(e.target.value)}
-                    placeholder="At least 6 characters"
+                    placeholder="6+ characters (demo only)"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-cyan-700 dark:bg-[#071122] dark:border-slate-700/60 dark:text-[#F0F6FC] dark:placeholder:text-slate-500 dark:focus:border-cyan-400"
                   />
                 </div>
