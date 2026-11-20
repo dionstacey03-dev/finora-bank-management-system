@@ -31,8 +31,9 @@ export interface AuthAdapterResult {
 
 export const authAdapter = {
   /**
-   * Simulates sign-in against the local educational directory.
-   * Passcode is validated strictly in-memory for realistic form feedback and discarded immediately.
+   * Simulates entry against the local educational directory.
+   * The passcode receives format-only validation; it is not compared with a credential,
+   * persisted, or used to establish identity. This is not authentication.
    */
   async signInDemo(
     input: AuthCredentialsInput,
@@ -47,7 +48,7 @@ export const authAdapter = {
     if (!input.passcode || input.passcode.length < 6) {
       return {
         success: false,
-        error: 'Educational passcode must be at least 6 characters.',
+        error: 'Demo entry code must be at least 6 characters.',
       };
     }
 
