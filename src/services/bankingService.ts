@@ -650,6 +650,9 @@ export const bankingService = {
     const now = new Date().toISOString();
     let nextStatus = tx.status;
     let updatedBalance = account.balance;
+    let pairedTx: Transaction | null = null;
+    let pairedAccount: BankAccount | null = null;
+    let pairedBalance = 0;
 
     if (decision === 'approve') {
       if (tx.status !== TransactionStatus.PENDING) return { ok: false, error: 'Only pending transactions can be approved.', state };
@@ -660,14 +663,31 @@ export const bankingService = {
       if (tx.status === TransactionStatus.REVERSED) {
         return { ok: false, error: 'Transaction has already been reversed.', state };
       }
-      if (tx.type === TransactionType.TRANSFER_IN || tx.type === TransactionType.TRANSFER_OUT) return { ok: false, error: 'Transfer reversal requires both linked entries; disabled to protect ledger integrity.', state };
       nextStatus = TransactionStatus.REVERSED;
-      const isCredit =
-        tx.type === TransactionType.DEPOSIT || tx.type === TransactionType.TRANSFER_IN;
-      if (isCredit && account.balance < tx.amount) return { ok: false, error: 'Reversal would create a negative balance. No changes were applied.', state };
-      updatedBalance = isCredit
-        ? Number((account.balance - tx.amount).toFixed(2))
-        : Number((account.balance + tx.amount).toFixed(2));
+      const isTransfer = tx.type === TransactionType.TRANSFER_IN || tx.type === TransactionType.TRANSFER_OUT;
+      if (isTransfer) {
+        const partnerRef = tx.referenceCode.slice(0, -2) + (tx.referenceCode.endsWith('-A') ? '-B' : '-A');
+        pairedTx = state.transactions.find((item) => item.referenceCode === partnerRef) ?? null;
+        if (!pairedTx || pairedTx.amount !== tx.amount || pairedTx.status === TransactionStatus.REVERSED ||
+            pairedTx.accountId === tx.accountId ||
+            !((tx.type === TransactionType.TRANSFER_IN && pairedTx.type === TransactionType.TRANSFER_OUT) ||
+              (tx.type === TransactionType.TRANSFER_OUT && pairedTx.type === TransactionType.TRANSFER_IN))) {
+          return { ok: false, error: 'Linked transfer entry is missing or inconsistent. No changes were applied.', state };
+        }
+        pairedAccount = state.accounts.find((item) => item.id === pairedTx!.accountId) ?? null;
+        if (!pairedAccount) return { ok: false, error: 'Linked transfer account is missing. No changes were applied.', state };
+        const txIsCredit = tx.type === TransactionType.TRANSFER_IN;
+        const pairIsCredit = pairedTx.type === TransactionType.TRANSFER_IN;
+        updatedBalance = Number((account.balance + (txIsCredit ? -tx.amount : tx.amount)).toFixed(2));
+        pairedBalance = Number((pairedAccount.balance + (pairIsCredit ? -pairedTx.amount : pairedTx.amount)).toFixed(2));
+        if (updatedBalance < 0 || pairedBalance < 0) return { ok: false, error: 'Reversal would create a negative balance. No changes were applied.', state };
+      } else {
+        const isCredit = tx.type === TransactionType.DEPOSIT;
+        if (isCredit && account.balance < tx.amount) return { ok: false, error: 'Reversal would create a negative balance. No changes were applied.', state };
+        updatedBalance = isCredit
+          ? Number((account.balance - tx.amount).toFixed(2))
+          : Number((account.balance + tx.amount).toFixed(2));
+      }
     }
 
     const updatedTx: Transaction = { ...tx, status: nextStatus };
@@ -702,9 +722,12 @@ export const bankingService = {
     const nextState: BankingLedgerState = {
       ...state,
       accounts: state.accounts.map((a) =>
-        a.id === account.id ? { ...a, balance: updatedBalance } : a,
+        a.id === account.id ? { ...a, balance: updatedBalance }
+          : pairedAccount && a.id === pairedAccount.id ? { ...a, balance: pairedBalance } : a,
       ),
-      transactions: state.transactions.map((t) => (t.id === tx.id ? updatedTx : t)),
+      transactions: state.transactions.map((t) =>
+        t.id === tx.id ? updatedTx : pairedTx && t.id === pairedTx.id ? { ...t, status: TransactionStatus.REVERSED } : t,
+      ),
       notifications: [notification, ...state.notifications],
       auditLog: [audit, ...state.auditLog],
     };
