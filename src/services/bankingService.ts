@@ -718,8 +718,8 @@ export const bankingService = {
     admin: UserProfile,
     customerId: string,
   ): OperationResult<UserProfile> {
-    if (admin.role !== UserRole.ADMIN) {
-      return { ok: false, error: 'Administrator privileges required.', state };
+    if (!isLedgerAdmin(state, admin)) {
+      return { ok: false, error: 'Active administrator privileges required.', state };
     }
     const target = state.users.find((u) => u.id === customerId && u.role === UserRole.CUSTOMER);
     if (!target) {
@@ -766,6 +766,9 @@ export const bankingService = {
       actor?: UserProfile;
     },
   ): OperationResult<UserProfile> {
+    if (params.actor && !isLedgerAdmin(state, params.actor)) {
+      return { ok: false, error: 'Only an active administrator can onboard a customer on behalf of the bank.', state };
+    }
     const emailClean = params.email.trim().toLowerCase();
     if (!params.fullName.trim() || params.fullName.trim().length < 2) {
       return { ok: false, error: 'Full name is required.', state };
