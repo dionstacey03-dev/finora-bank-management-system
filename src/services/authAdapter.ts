@@ -31,8 +31,8 @@ export interface AuthAdapterResult {
 
 export const authAdapter = {
   /**
-   * Simulates sign-in against the local educational directory.
-   * Passcode is validated strictly in-memory for realistic form feedback and discarded immediately.
+   * Educational demo gate only: there are no stored credentials and this passcode
+   * is not proof of identity. Production authentication must be server-side.
    */
   async signInDemo(
     input: AuthCredentialsInput,
@@ -60,6 +60,9 @@ export const authAdapter = {
         success: false,
         error: `No ${input.requestedRole === UserRole.ADMIN ? 'administrator' : 'customer'} profile matches "${input.email}". Use a quick-access demo profile below or create a simulated customer.`,
       };
+    }
+    if (matchedUser.status !== 'Active') {
+      return { success: false, error: 'This demo profile is restricted and cannot sign in.' };
     }
 
     return {
