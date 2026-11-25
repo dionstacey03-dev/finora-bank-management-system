@@ -19,6 +19,13 @@ import { normalizeTransactionTags } from '../utils/tags';
 
 export { formatCurrency };
 
+const isActiveLedgerActor = (state: BankingLedgerState, actor: UserProfile): boolean => {
+  const record = state.users.find((user) => user.id === actor.id);
+  return Boolean(record && record.role === actor.role && record.status === 'Active');
+};
+const isLedgerAdmin = (state: BankingLedgerState, actor: UserProfile): boolean =>
+  isActiveLedgerActor(state, actor) && actor.role === UserRole.ADMIN;
+
 const LEDGER_STORAGE_KEY = 'finora_educational_ledger_lkr_v1';
 
 const generateId = (prefix: string): string => {
@@ -145,9 +152,15 @@ export const bankingService = {
       };
     }
 
+    if (!isActiveLedgerActor(state, actor) || actor.role !== UserRole.CUSTOMER) {
+      return { ok: false, error: 'An active customer profile is required.', state };
+    }
     const account = state.accounts.find((a) => a.id === accountId);
     if (!account) {
       return { ok: false, error: 'Selected account was not found.', state };
+    }
+    if (account.ownerId !== actor.id) {
+      return { ok: false, error: 'You can only transact on an account you own.', state };
     }
     if (account.status === AccountStatus.FROZEN) {
       return {
@@ -297,8 +310,20 @@ export const bankingService = {
     const fromAcc = state.accounts.find((a) => a.id === fromAccountId);
     const toAcc = state.accounts.find((a) => a.id === toAccountId);
 
+    if (!isActiveLedgerActor(state, actor) || actor.role !== UserRole.CUSTOMER) {
+      return { ok: false, error: 'An active customer profile is required.', state };
+    }
     if (!fromAcc || !toAcc) {
       return { ok: false, error: 'One or both selected accounts could not be found.', state };
+    }
+    if (fromAcc.ownerId !== actor.id) {
+      return { ok: false, error: 'You can only transfer from an account you own.', state };
+    }
+    if (!state.users.some((user) => user.id === toAcc.ownerId && user.role === UserRole.CUSTOMER && user.status === 'Active')) {
+      return { ok: false, error: 'Destination account must belong to an active customer.', state };
+    }
+    if (amount > 50000000) {
+      return { ok: false, error: 'Single simulated transaction limit is LKR 50,000,000.', state };
     }
     if (fromAcc.status === AccountStatus.FROZEN || toAcc.status === AccountStatus.FROZEN) {
       return { ok: false, error: 'Transfers are blocked while either account is frozen.', state };
@@ -520,6 +545,7 @@ export const bankingService = {
     actor: UserProfile,
     accountId: string,
   ): OperationResult<BankAccount> {
+    if (!isLedgerAdmin(state, actor)) return { ok: false, error: 'Active administrator privileges required.', state };
     const target = state.accounts.find((a) => a.id === accountId);
     if (!target) {
       return { ok: false, error: 'Account not found.', state };
@@ -568,6 +594,7 @@ export const bankingService = {
     accountId: string,
     newLimit: number,
   ): OperationResult<BankAccount> {
+    if (!isLedgerAdmin(state, actor)) return { ok: false, error: 'Active administrator privileges required.', state };
     if (!Number.isFinite(newLimit) || newLimit < 25000 || newLimit > 25000000) {
       return {
         ok: false,
@@ -608,8 +635,8 @@ export const bankingService = {
     transactionId: string,
     decision: 'approve' | 'flag' | 'reverse',
   ): OperationResult<Transaction> {
-    if (admin.role !== UserRole.ADMIN) {
-      return { ok: false, error: 'Administrator privileges required.', state };
+    if (!isLedgerAdmin(state, admin)) {
+      return { ok: false, error: 'Active administrator privileges required.', state };
     }
     const tx = state.transactions.find((t) => t.id === transactionId);
     if (!tx) {
@@ -625,6 +652,7 @@ export const bankingService = {
     let updatedBalance = account.balance;
 
     if (decision === 'approve') {
+      if (tx.status !== TransactionStatus.PENDING) return { ok: false, error: 'Only pending transactions can be approved.', state };
       nextStatus = TransactionStatus.COMPLETED;
     } else if (decision === 'flag') {
       nextStatus = TransactionStatus.FLAGGED;
@@ -632,11 +660,13 @@ export const bankingService = {
       if (tx.status === TransactionStatus.REVERSED) {
         return { ok: false, error: 'Transaction has already been reversed.', state };
       }
+      if (tx.type === TransactionType.TRANSFER_IN || tx.type === TransactionType.TRANSFER_OUT) return { ok: false, error: 'Transfer reversal requires both linked entries; disabled to protect ledger integrity.', state };
       nextStatus = TransactionStatus.REVERSED;
       const isCredit =
         tx.type === TransactionType.DEPOSIT || tx.type === TransactionType.TRANSFER_IN;
+      if (isCredit && account.balance < tx.amount) return { ok: false, error: 'Reversal would create a negative balance. No changes were applied.', state };
       updatedBalance = isCredit
-        ? Number(Math.max(0, account.balance - tx.amount).toFixed(2))
+        ? Number((account.balance - tx.amount).toFixed(2))
         : Number((account.balance + tx.amount).toFixed(2));
     }
 
